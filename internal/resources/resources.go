@@ -17,6 +17,8 @@ package resources
 import (
 	"context"
 	"fmt"
+	"net/url"
+	"strings"
 	"sync"
 
 	"github.com/goccy/go-yaml"
@@ -42,17 +44,20 @@ func GetBaseDirFromContext(ctx context.Context) string {
 type ResourceConfig interface {
 	ResourceConfigType() string
 	GetURI() string
-	GetName() string
-	GetTitle() string
-	GetDescription() string
-	GetMimeType() string
-	GetSize() *int64
-	GetAnnotations() *ResourceAnnotations
+	SetDefaults()
+	Validate() error
 	Initialize(ctx context.Context) (Resource, error)
 }
 
 // Resource is the initialized object that handles data execution.
 type Resource interface {
+	GetName() string
+	GetTitle() string
+	GetDescription() string
+	GetMimeType() string
+	GetAnnotations() *ResourceAnnotations
+	GetURI() string
+	GetSize() *int64
 	Read(ctx context.Context, params map[string]any) (any, error)
 	ToConfig() ResourceConfig
 }
@@ -63,8 +68,8 @@ type ResourceAnnotations struct {
 	LastModified string         `yaml:"lastModified,omitempty"`
 }
 
-// BaseConfig contains the common fields for all resource and template configurations.
-type BaseConfig struct {
+// ConfigBase contains the common fields for all resource and template configurations.
+type ConfigBase struct {
 	Name        string               `yaml:"name"`
 	Type        string               `yaml:"type"`
 	Description string               `yaml:"description,omitempty"`
@@ -73,26 +78,22 @@ type BaseConfig struct {
 	Annotations *ResourceAnnotations `yaml:"annotations,omitempty"`
 }
 
-func (c BaseConfig) GetName() string                      { return c.Name }
-func (c BaseConfig) GetTitle() string                     { return c.Title }
-func (c BaseConfig) GetDescription() string               { return c.Description }
-func (c BaseConfig) GetMimeType() string                  { return c.MimeType }
-func (c BaseConfig) GetAnnotations() *ResourceAnnotations { return c.Annotations }
+func (c ConfigBase) GetName() string        { return c.Name }
+func (c ConfigBase) GetTitle() string       { return c.Title }
+func (c ConfigBase) GetDescription() string { return c.Description }
+func (c ConfigBase) GetMimeType() string    { return c.MimeType }
+func (c ConfigBase) GetAnnotations() *ResourceAnnotations { return c.Annotations }
 
-// BaseResourceConfig contains the fields for a specific resource configuration.
-type BaseResourceConfig struct {
-	BaseConfig `yaml:",inline"`
+// ResourceConfigBase contains the fields for a specific resource configuration.
+type ResourceConfigBase struct {
+	ConfigBase `yaml:",inline"`
 	URI        string `yaml:"uri,omitempty"`
 	Size       *int64 `yaml:"-"`
 }
 
 // GetURI returns the URI of the resource configuration.
-func (c BaseResourceConfig) GetURI() string {
+func (c ResourceConfigBase) GetURI() string {
 	return c.URI
-}
-
-func (c BaseResourceConfig) GetSize() *int64 {
-	return c.Size
 }
 
 type AudienceRole string
@@ -117,7 +118,7 @@ func (r *AudienceRole) UnmarshalYAML(b []byte) error {
 }
 
 // SetDefaults applies system defaults (like priority=1.0) for unspecified optional fields.
-func (c *BaseConfig) SetDefaults() {
+func (c *ConfigBase) SetDefaults() {
 	if c.Annotations == nil {
 		c.Annotations = &ResourceAnnotations{}
 	}
@@ -128,7 +129,7 @@ func (c *BaseConfig) SetDefaults() {
 }
 
 // Validate performs base configuration validation, such as checking for duplicate audiences.
-func (c BaseConfig) Validate() error {
+func (c *ConfigBase) Validate() error {
 	if c.Annotations != nil && len(c.Annotations.Audience) > 0 {
 		seen := make(map[AudienceRole]bool)
 		for _, aud := range c.Annotations.Audience {
@@ -138,6 +139,29 @@ func (c BaseConfig) Validate() error {
 			seen[aud] = true
 		}
 	}
+	return nil
+}
+
+// Validate performs resource-specific validation including URI scheme checks.
+func (c *ResourceConfigBase) Validate() error {
+	if err := c.ConfigBase.Validate(); err != nil {
+		return err
+	}
+
+	if c.URI == "" {
+		return fmt.Errorf("missing required 'uri' field for resource %q", c.Name)
+	}
+
+	parsed, err := url.Parse(c.URI)
+	if err != nil || parsed.Scheme == "" {
+		return fmt.Errorf("invalid 'uri' field for resource %q: must be a valid RFC-compliant absolute URI with a scheme", c.Name)
+	}
+
+	// Normalize scheme and host to lowercase for consistent comparison and usage
+	parsed.Scheme = strings.ToLower(parsed.Scheme)
+	parsed.Host = strings.ToLower(parsed.Host)
+	c.URI = parsed.String()
+
 	return nil
 }
 
@@ -166,8 +190,7 @@ func Register(resourceType string, factory ResourceConfigFactory) bool {
 	return true
 }
 
-// DecodeConfig looks up the registered factory for the given type and uses it
-// to decode the resource configuration.
+// DecodeConfig decodes a YAML document into the appropriate ResourceConfig implementation.
 func DecodeConfig(ctx context.Context, resourceType, name string, decoder *yaml.Decoder) (ResourceConfig, error) {
 	if decoder == nil {
 		return nil, fmt.Errorf("decoder cannot be nil for resource %q", name)
@@ -187,14 +210,10 @@ func DecodeConfig(ctx context.Context, resourceType, name string, decoder *yaml.
 		return nil, fmt.Errorf("factory returned nil config for resource %q as type %q", name, resourceType)
 	}
 
-	if defaulter, ok := config.(interface{ SetDefaults() }); ok {
-		defaulter.SetDefaults()
-	}
+	config.SetDefaults()
 
-	if validatable, ok := config.(interface{ Validate() error }); ok {
-		if err := validatable.Validate(); err != nil {
-			return nil, fmt.Errorf("validation failed for resource %q: %w", name, err)
-		}
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("validation failed for resource %q: %w", name, err)
 	}
 
 	return config, nil
@@ -204,30 +223,49 @@ func DecodeConfig(ctx context.Context, resourceType, name string, decoder *yaml.
 type ResourceTemplateConfig interface {
 	ResourceTemplateConfigType() string
 	GetURITemplate() string
-	GetName() string
-	GetTitle() string
-	GetDescription() string
-	GetMimeType() string
-	GetAnnotations() *ResourceAnnotations
+	SetDefaults()
+	Validate() error
 	Initialize(ctx context.Context) (ResourceTemplate, error)
 }
 
 // ResourceTemplate is the initialized object that handles data execution.
 type ResourceTemplate interface {
+	GetName() string
+	GetTitle() string
+	GetDescription() string
+	GetMimeType() string
+	GetAnnotations() *ResourceAnnotations
+	GetURITemplate() string
 	Read(ctx context.Context, params map[string]any) (any, error)
 	ToConfig() ResourceTemplateConfig
 }
 
-// BaseResourceTemplateConfig contains the specific fields for resource template configurations.
-type BaseResourceTemplateConfig struct {
-	BaseConfig  `yaml:",inline"`
-	URITemplate string `yaml:"uriTemplate"`
+// ResourceTemplateConfigBase contains the specific fields for resource template configurations.
+type ResourceTemplateConfigBase struct {
+	ConfigBase  `yaml:",inline"`
+	URITemplate string `yaml:"uriTemplate" validate:"required"`
 }
 
 // GetURITemplate returns the URI template of the resource configuration.
-func (c BaseResourceTemplateConfig) GetURITemplate() string {
+func (c ResourceTemplateConfigBase) GetURITemplate() string {
 	return c.URITemplate
 }
+
+// Validate performs base configuration validation for resource templates.
+func (c *ResourceTemplateConfigBase) Validate() error {
+	if err := c.ConfigBase.Validate(); err != nil {
+		return err
+	}
+	if c.URITemplate == "" {
+		return fmt.Errorf("missing required 'uriTemplate' field for resource template %q", c.Name)
+	}
+	parsed, err := url.Parse(strings.ReplaceAll(c.URITemplate, "{path}", "path"))
+	if err != nil || parsed.Scheme == "" {
+		return fmt.Errorf("invalid 'uriTemplate' field for resource template %q: must be a valid RFC-compliant absolute URI with a scheme", c.Name)
+	}
+	return nil
+}
+
 
 // ResourceTemplateConfigFactory defines the signature for a function that creates and
 // decodes a specific resource template's configuration.
@@ -275,15 +313,16 @@ func DecodeTemplateConfig(ctx context.Context, resourceType, name string, decode
 		return nil, fmt.Errorf("factory returned nil config for resource template %q as type %q", name, resourceType)
 	}
 
-	if defaulter, ok := config.(interface{ SetDefaults() }); ok {
-		defaulter.SetDefaults()
-	}
+	config.SetDefaults()
 
-	if validatable, ok := config.(interface{ Validate() error }); ok {
-		if err := validatable.Validate(); err != nil {
-			return nil, fmt.Errorf("validation failed for resource template %q: %w", name, err)
-		}
+	if err := config.Validate(); err != nil {
+		return nil, fmt.Errorf("validation failed for resource template %q: %w", name, err)
 	}
 
 	return config, nil
+}
+
+// GetSize returns the size of the resource configuration.
+func (c ResourceConfigBase) GetSize() *int64 {
+	return c.Size
 }
