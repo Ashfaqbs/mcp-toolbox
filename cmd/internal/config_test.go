@@ -626,17 +626,7 @@ tools:
 
 func float64Ptr(f float64) *float64 { return &f }
 
-type mockResourceTemplateConfig struct {
-	resources.ResourceTemplateConfigBase `yaml:",inline"`
-}
 
-func (m mockResourceTemplateConfig) ResourceTemplateConfigType() string {
-	return "mock"
-}
-
-func (m mockResourceTemplateConfig) Initialize(ctx context.Context) (resources.ResourceTemplate, error) {
-	return nil, nil
-}
 
 
 func TestParseConfig(t *testing.T) {
@@ -652,15 +642,7 @@ func TestParseConfig(t *testing.T) {
 		return &cfg, nil
 	})
 
-	resources.RegisterTemplate("mock", func(ctx context.Context, name string, decoder *yaml.Decoder) (resources.ResourceTemplateConfig, error) {
-		var cfg mockResourceTemplateConfig
-		cfg.Name = name
-		cfg.Type = "mock"
-		if err := decoder.DecodeContext(ctx, &cfg); err != nil {
-			return nil, err
-		}
-		return &cfg, nil
-	})
+
 
 	ctx, err := testutils.ContextWithNewLogger()
 	if err != nil {
