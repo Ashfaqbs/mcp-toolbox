@@ -295,6 +295,7 @@ func (m MockResourceTemplate) GetTitle() string       { return m.config.GetTitle
 func (m MockResourceTemplate) GetDescription() string { return m.config.GetDescription() }
 func (m MockResourceTemplate) GetMimeType() string    { return m.config.GetMimeType() }
 func (m MockResourceTemplate) GetURITemplate() string { return m.config.GetURITemplate() }
+func (m MockResourceTemplate) GetAnnotations() *resources.ResourceAnnotations { return m.config.Annotations }
 
 func (m MockResourceTemplate) Read(ctx context.Context, params map[string]any) (any, error) {
 	return "mock resource template data", nil
@@ -307,8 +308,6 @@ func (m MockResourceTemplate) ToConfig() resources.ResourceTemplateConfig {
 func (m MockResourceTemplate) GetName() string {
 	return m.config.Name
 }
-
-
 
 func NewMockResource(name, uri, title, mimeType string, size *int64, annotations *resources.ResourceAnnotations) MockResource {
 	cfgBase := resources.ConfigBase{Name: name}
@@ -330,7 +329,7 @@ func NewMockResource(name, uri, title, mimeType string, size *int64, annotations
 	return MockResource{
 		config: &MockResourceConfig{
 			ResourceConfigBase: resCfg,
-			Size: size,
+			Size:               size,
 		},
 	}
 }
@@ -355,10 +354,4 @@ func NewMockResourceTemplate(name, uriTemplate, title, mimeType string, annotati
 			},
 		},
 	}
-}
-
-
-
-func (m MockResourceTemplate) GetAnnotations() *resources.ResourceAnnotations {
-	return m.config.Annotations
 }
