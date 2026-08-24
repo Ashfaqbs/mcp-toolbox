@@ -78,17 +78,16 @@ type ConfigBase struct {
 	Annotations *ResourceAnnotations `yaml:"annotations,omitempty"`
 }
 
-func (c ConfigBase) GetName() string        { return c.Name }
-func (c ConfigBase) GetTitle() string       { return c.Title }
-func (c ConfigBase) GetDescription() string { return c.Description }
-func (c ConfigBase) GetMimeType() string    { return c.MimeType }
+func (c ConfigBase) GetName() string                      { return c.Name }
+func (c ConfigBase) GetTitle() string                     { return c.Title }
+func (c ConfigBase) GetDescription() string               { return c.Description }
+func (c ConfigBase) GetMimeType() string                  { return c.MimeType }
 func (c ConfigBase) GetAnnotations() *ResourceAnnotations { return c.Annotations }
 
 // ResourceConfigBase contains the fields for a specific resource configuration.
 type ResourceConfigBase struct {
 	ConfigBase `yaml:",inline"`
 	URI        string `yaml:"uri,omitempty"`
-	Size       *int64 `yaml:"-"`
 }
 
 // GetURI returns the URI of the resource configuration.
@@ -266,7 +265,6 @@ func (c *ResourceTemplateConfigBase) Validate() error {
 	return nil
 }
 
-
 // ResourceTemplateConfigFactory defines the signature for a function that creates and
 // decodes a specific resource template's configuration.
 type ResourceTemplateConfigFactory func(ctx context.Context, name string, decoder *yaml.Decoder) (ResourceTemplateConfig, error)
@@ -320,9 +318,4 @@ func DecodeTemplateConfig(ctx context.Context, resourceType, name string, decode
 	}
 
 	return config, nil
-}
-
-// GetSize returns the size of the resource configuration.
-func (c ResourceConfigBase) GetSize() *int64 {
-	return c.Size
 }

@@ -15,11 +15,11 @@
 package primitives
 
 import (
+	"cmp"
 	"fmt"
 	"regexp"
-	"strings"
-	"cmp"
 	"slices"
+	"strings"
 	"sync"
 
 	"github.com/googleapis/mcp-toolbox/internal/auth"
@@ -35,15 +35,15 @@ import (
 // groups is the source of truth for named collections; toolset views (manifests)
 // are derived from the group on demand by the callers that render them.
 type PrimitiveManager struct {
-	mu              sync.RWMutex
-	sources         map[string]sources.Source
-	authServices    map[string]auth.AuthService
-	embeddingModels map[string]embeddingmodels.EmbeddingModel
-	tools           map[string]tools.Tool
-	prompts         map[string]prompts.Prompt
-	resources       map[string]resources.Resource
-	resourceTemplates  map[string]resources.ResourceTemplate
-	groups          map[string]group.Group
+	mu                sync.RWMutex
+	sources           map[string]sources.Source
+	authServices      map[string]auth.AuthService
+	embeddingModels   map[string]embeddingmodels.EmbeddingModel
+	tools             map[string]tools.Tool
+	prompts           map[string]prompts.Prompt
+	resources         map[string]resources.Resource
+	resourceTemplates map[string]resources.ResourceTemplate
+	groups            map[string]group.Group
 }
 
 func NewPrimitiveManager(
@@ -57,15 +57,15 @@ func NewPrimitiveManager(
 	groupsMap map[string]group.Group,
 ) *PrimitiveManager {
 	primitiveMgr := &PrimitiveManager{
-		mu:                 sync.RWMutex{},
-		sources:            sourcesMap,
-		authServices:       authServicesMap,
-		embeddingModels:    embeddingModelsMap,
-		tools:              toolsMap,
-		prompts:            promptsMap,
-		resources:          resourcesMap,
-		resourceTemplates:  resourceTemplatesMap,
-		groups:             groupsMap,
+		mu:                sync.RWMutex{},
+		sources:           sourcesMap,
+		authServices:      authServicesMap,
+		embeddingModels:   embeddingModelsMap,
+		tools:             toolsMap,
+		prompts:           promptsMap,
+		resources:         resourcesMap,
+		resourceTemplates: resourceTemplatesMap,
+		groups:            groupsMap,
 	}
 
 	return primitiveMgr
@@ -142,7 +142,7 @@ func (r *PrimitiveManager) GetSourcesMap() map[string]sources.Source {
 	for k, v := range r.sources {
 		copiedMap[k] = v
 	}
-	return copiedMap	
+	return copiedMap
 }
 
 func (r *PrimitiveManager) GetAuthServiceMap() map[string]auth.AuthService {
@@ -173,7 +173,6 @@ func (r *PrimitiveManager) GroupsList() []group.Group {
 
 	return groupsList
 }
-
 
 // GetResourceTemplatesMap returns a copy of the resource templates map.
 func (r *PrimitiveManager) GetResourceTemplatesMap() map[string]resources.ResourceTemplate {
