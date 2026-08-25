@@ -543,6 +543,7 @@ type ResourceAnnotations struct {
 
 // ListResourcesResult represents the result of a list resources request.
 type ListResourcesResult struct {
+	Result
 	PaginatedResult
 	CacheableResult
 	Resources []Resource `json:"resources"`
@@ -570,6 +571,7 @@ type ResourceTemplate struct {
 
 // ListResourceTemplatesResult represents the result of a list resource templates request.
 type ListResourceTemplatesResult struct {
+	Result
 	PaginatedResult
 	CacheableResult
 	ResourceTemplates []ResourceTemplate `json:"resourceTemplates"`
@@ -592,7 +594,7 @@ type ReadResourceRequestParams struct {
 type ReadResourceResult struct {
 	jsonrpc.Result
 	CacheableResult
-	Contents []any `json:"contents"` // TextResourceContent
+	Contents []TextResourceContent `json:"contents"`
 }
 
 // TextResourceContent represents text-based resource content.
@@ -642,7 +644,9 @@ type GetGroupRequestParams struct {
 // through groups/list.
 type GetGroupResult struct {
 	jsonrpc.Result
-	Name    string   `json:"name"`
-	Tools   []Tool   `json:"tools"`
-	Prompts []Prompt `json:"prompts"`
+	Name              string             `json:"name"`
+	Tools             []Tool             `json:"tools"`
+	Prompts           []Prompt           `json:"prompts"`
+	Resources         []Resource         `json:"resources"`
+	ResourceTemplates []ResourceTemplate `json:"resourceTemplates"`
 }

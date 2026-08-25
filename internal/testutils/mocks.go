@@ -309,10 +309,13 @@ func (m MockResourceTemplate) GetName() string {
 	return m.config.Name
 }
 
-func NewMockResource(name, uri, title, mimeType string, size *int64, annotations *resources.ResourceAnnotations) MockResource {
+func NewMockResource(name, uri, title, description, mimeType string, size *int64, annotations *resources.ResourceAnnotations) MockResource {
 	cfgBase := resources.ConfigBase{Name: name}
 	if title != "" {
 		cfgBase.Title = title
+	}
+	if description != "" {
+		cfgBase.Description = description
 	}
 	if mimeType != "" {
 		cfgBase.MimeType = mimeType
@@ -334,10 +337,13 @@ func NewMockResource(name, uri, title, mimeType string, size *int64, annotations
 	}
 }
 
-func NewMockResourceTemplate(name, uriTemplate, title, mimeType string, annotations *resources.ResourceAnnotations) MockResourceTemplate {
+func NewMockResourceTemplate(name, uriTemplate, title, description, mimeType string, annotations *resources.ResourceAnnotations) MockResourceTemplate {
 	cfgBase := resources.ConfigBase{Name: name}
 	if title != "" {
 		cfgBase.Title = title
+	}
+	if description != "" {
+		cfgBase.Description = description
 	}
 	if mimeType != "" {
 		cfgBase.MimeType = mimeType

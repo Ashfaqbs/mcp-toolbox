@@ -435,7 +435,7 @@ type ReadResourceRequest struct {
 // ReadResourceResult represents the result of a read resource request.
 type ReadResourceResult struct {
 	jsonrpc.Result
-	Contents []any `json:"contents"` // TextResourceContent
+	Contents []TextResourceContent `json:"contents"`
 }
 
 // TextResourceContent represents text-based resource content.

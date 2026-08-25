@@ -570,11 +570,11 @@ func TestResourcesListHandler(t *testing.T) {
 	ctx = util.WithLogger(ctx, testLogger)
 
 	mockResources := []testutils.MockResource{
-		testutils.NewMockResource("res1", "file:///res1", "", "", nil, nil),
-		testutils.NewMockResource("res2", "file:///res2", "Title 2", "application/json", nil, nil),
+		testutils.NewMockResource("res1", "file:///res1", "", "", "", nil, nil),
+		testutils.NewMockResource("res2", "file:///res2", "Title 2", "", "application/json", nil, nil),
 	}
-	toolsMap, promptsMap, resourcesMap, resourceTemplatesMap, _ := testutils.SetUpPrimitives(t, nil, nil, mockResources, nil)
-	primitiveMgr := primitives.NewPrimitiveManager(nil, nil, nil, toolsMap, promptsMap, resourcesMap, resourceTemplatesMap, nil)
+	toolsMap, promptsMap, resourcesMap, resourceTemplatesMap, groups := testutils.SetUpPrimitives(t, nil, nil, mockResources, nil)
+	primitiveMgr := primitives.NewPrimitiveManager(nil, nil, nil, toolsMap, promptsMap, resourcesMap, resourceTemplatesMap, groups)
 
 	tests := []struct {
 		name        string
@@ -611,7 +611,7 @@ func TestResourcesListHandler(t *testing.T) {
 				}
 			}
 
-			got, err := resourcesListHandler(ctx, dummyID, primitiveMgr, body)
+			got, err := resourcesListHandler(ctx, dummyID, primitiveMgr, mustGroup(t, primitiveMgr), body)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got nil")
@@ -626,7 +626,7 @@ func TestResourcesListHandler(t *testing.T) {
 				if got == nil {
 					t.Errorf("expected valid response, got nil")
 				} else {
-					resp := got.(jsonrpc.JSONRPCResponse).Result.(*ListResourcesResult)
+					resp := got.(jsonrpc.JSONRPCResponse).Result.(ListResourcesResult)
 					if len(resp.Resources) != 2 {
 						t.Errorf("expected 2 resources, got %d", len(resp.Resources))
 					} else {
@@ -654,11 +654,11 @@ func TestResourceTemplatesListHandler(t *testing.T) {
 	ctx = util.WithLogger(ctx, testLogger)
 
 	mockTemplates := []testutils.MockResourceTemplate{
-		testutils.NewMockResourceTemplate("tmpl1", "file:///{tmpl}", "", "", nil),
-		testutils.NewMockResourceTemplate("rt2", "file:///rt2/{path}", "Title RT", "text/plain", nil),
+		testutils.NewMockResourceTemplate("tmpl1", "file:///{tmpl}", "", "", "", nil),
+		testutils.NewMockResourceTemplate("rt2", "file:///rt2/{path}", "Title RT", "", "text/plain", nil),
 	}
-	toolsMap, promptsMap, resourcesMap, resourceTemplatesMap, _ := testutils.SetUpPrimitives(t, nil, nil, nil, mockTemplates)
-	primitiveMgr := primitives.NewPrimitiveManager(nil, nil, nil, toolsMap, promptsMap, resourcesMap, resourceTemplatesMap, nil)
+	toolsMap, promptsMap, resourcesMap, resourceTemplatesMap, groups := testutils.SetUpPrimitives(t, nil, nil, nil, mockTemplates)
+	primitiveMgr := primitives.NewPrimitiveManager(nil, nil, nil, toolsMap, promptsMap, resourcesMap, resourceTemplatesMap, groups)
 
 	tests := []struct {
 		name        string
@@ -695,7 +695,7 @@ func TestResourceTemplatesListHandler(t *testing.T) {
 				}
 			}
 
-			got, err := resourceTemplatesListHandler(ctx, dummyID, primitiveMgr, body)
+			got, err := resourceTemplatesListHandler(ctx, dummyID, primitiveMgr, mustGroup(t, primitiveMgr), body)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got nil")
@@ -710,7 +710,7 @@ func TestResourceTemplatesListHandler(t *testing.T) {
 				if got == nil {
 					t.Errorf("expected valid response, got nil")
 				} else {
-					resp := got.(jsonrpc.JSONRPCResponse).Result.(*ListResourceTemplatesResult)
+					resp := got.(jsonrpc.JSONRPCResponse).Result.(ListResourceTemplatesResult)
 					if len(resp.ResourceTemplates) != 2 {
 						t.Errorf("expected 2 templates, got %d", len(resp.ResourceTemplates))
 					} else {
@@ -738,10 +738,10 @@ func TestResourcesReadHandler(t *testing.T) {
 	ctx = util.WithLogger(ctx, testLogger)
 
 	mockResources := []testutils.MockResource{
-		testutils.NewMockResource("res1", "file:///res1", "", "", nil, nil),
+		testutils.NewMockResource("res1", "file:///res1", "", "", "", nil, nil),
 	}
-	toolsMap, promptsMap, resourcesMap, resourceTemplatesMap, _ := testutils.SetUpPrimitives(t, nil, nil, mockResources, nil)
-	primitiveMgr := primitives.NewPrimitiveManager(nil, nil, nil, toolsMap, promptsMap, resourcesMap, resourceTemplatesMap, nil)
+	toolsMap, promptsMap, resourcesMap, resourceTemplatesMap, groups := testutils.SetUpPrimitives(t, nil, nil, mockResources, nil)
+	primitiveMgr := primitives.NewPrimitiveManager(nil, nil, nil, toolsMap, promptsMap, resourcesMap, resourceTemplatesMap, groups)
 
 	tests := []struct {
 		name        string
@@ -794,7 +794,7 @@ func TestResourcesReadHandler(t *testing.T) {
 				}
 			}
 
-			got, err := resourcesReadHandler(ctx, dummyID, primitiveMgr, body)
+			got, err := resourcesReadHandler(ctx, dummyID, primitiveMgr, mustGroup(t, primitiveMgr), body)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got nil")

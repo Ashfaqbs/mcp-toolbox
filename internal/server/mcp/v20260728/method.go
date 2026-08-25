@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"slices"
 	"time"
 
 	"github.com/googleapis/mcp-toolbox/internal/auth"
@@ -49,11 +48,11 @@ func ProcessMethod(ctx context.Context, id jsonrpc.RequestId, method string, g g
 	case TOOLS_CALL:
 		return toolsCallHandler(ctx, id, g, primitiveMgr, body, header)
 	case RESOURCES_LIST:
-		return resourcesListHandler(ctx, id, primitiveMgr, body, header)
+		return resourcesListHandler(ctx, id, primitiveMgr, g, body, header)
 	case RESOURCES_TEMPLATES_LIST:
-		return resourceTemplatesListHandler(ctx, id, primitiveMgr, body, header)
+		return resourceTemplatesListHandler(ctx, id, primitiveMgr, g, body, header)
 	case RESOURCES_READ:
-		return resourcesReadHandler(ctx, id, primitiveMgr, body, header)
+		return resourcesReadHandler(ctx, id, primitiveMgr, g, body, header)
 	case PROMPTS_LIST:
 		return promptsListHandler(ctx, id, primitiveMgr, g, body, header)
 	case PROMPTS_GET:
@@ -797,7 +796,14 @@ func groupsGetHandler(ctx context.Context, id jsonrpc.RequestId, primitiveMgr *p
 }
 
 // resourcesListHandler generates a response for resources/list.
-func resourcesListHandler(ctx context.Context, id jsonrpc.RequestId, primitiveMgr *primitives.PrimitiveManager, body []byte, header http.Header) (any, error) {
+func resourcesListHandler(ctx context.Context, id jsonrpc.RequestId, primitiveMgr *primitives.PrimitiveManager, g group.Group, body []byte, header http.Header) (any, error) {
+	// retrieve logger from context
+	logger, err := util.LoggerFromContext(ctx)
+	if err != nil {
+		return jsonrpc.NewError(id, jsonrpc.INTERNAL_ERROR, err.Error(), nil), err
+	}
+	logger.DebugContext(ctx, "handling resources/list request")
+
 	var req ListResourcesRequest
 	if err := json.Unmarshal(body, &req); err != nil {
 		err = fmt.Errorf("invalid mcp resources list request: %w", err)
@@ -812,49 +818,17 @@ func resourcesListHandler(ctx context.Context, id jsonrpc.RequestId, primitiveMg
 		return validateErr, err
 	}
 
-	resourcesMap := primitiveMgr.GetResourcesMap()
-	keys := make([]string, 0, len(resourcesMap))
-	for k := range resourcesMap {
-		keys = append(keys, k)
+	result, err := GenerateListResourcesResult(primitiveMgr, g)
+	if err != nil {
+		return jsonrpc.NewError(id, jsonrpc.INTERNAL_ERROR, err.Error(), nil), err
 	}
-	slices.Sort(keys)
-
-	result := &ListResourcesResult{
-		Resources: make([]Resource, 0, len(keys)),
-		CacheableResult: CacheableResult{
-			TtlMs:      300000,
-			CacheScope: cacheScopePublic,
-		},
+	logger.DebugContext(ctx, fmt.Sprintf("returning %d resources", len(result.Resources)))
+	
+	meta, err := getResultMetadata(ctx, result.Meta)
+	if err != nil {
+		return jsonrpc.NewError(id, jsonrpc.INTERNAL_ERROR, err.Error(), nil), err
 	}
-
-	for _, k := range keys {
-		res := resourcesMap[k]
-
-		var annotations *ResourceAnnotations
-		if internalAnns := res.GetAnnotations(); internalAnns != nil {
-			if len(internalAnns.Audience) > 0 || internalAnns.Priority != nil || internalAnns.LastModified != "" {
-				annotations = &ResourceAnnotations{}
-				for _, aud := range internalAnns.Audience {
-					annotations.Audience = append(annotations.Audience, Role(aud))
-				}
-				if internalAnns.Priority != nil {
-					annotations.Priority = *internalAnns.Priority
-				}
-				if internalAnns.LastModified != "" {
-					annotations.LastModified = internalAnns.LastModified
-				}
-			}
-		}
-
-		result.Resources = append(result.Resources, Resource{
-			BaseMetadata: BaseMetadata{Name: k, Title: res.GetTitle()},
-			Uri:          res.GetURI(),
-			Description:  res.GetDescription(),
-			MimeType:     res.GetMimeType(),
-			Size:         res.GetSize(),
-			Annotations:  annotations,
-		})
-	}
+	result.Meta = meta
 
 	return jsonrpc.JSONRPCResponse{
 		Jsonrpc: jsonrpc.JSONRPC_VERSION,
@@ -864,7 +838,14 @@ func resourcesListHandler(ctx context.Context, id jsonrpc.RequestId, primitiveMg
 }
 
 // resourceTemplatesListHandler generates a response for resources/templates/list.
-func resourceTemplatesListHandler(ctx context.Context, id jsonrpc.RequestId, primitiveMgr *primitives.PrimitiveManager, body []byte, header http.Header) (any, error) {
+func resourceTemplatesListHandler(ctx context.Context, id jsonrpc.RequestId, primitiveMgr *primitives.PrimitiveManager, g group.Group, body []byte, header http.Header) (any, error) {
+	// retrieve logger from context
+	logger, err := util.LoggerFromContext(ctx)
+	if err != nil {
+		return jsonrpc.NewError(id, jsonrpc.INTERNAL_ERROR, err.Error(), nil), err
+	}
+	logger.DebugContext(ctx, "handling resources/templates/list request")
+
 	var req ListResourceTemplatesRequest
 	if err := json.Unmarshal(body, &req); err != nil {
 		err = fmt.Errorf("invalid mcp resource templates list request: %w", err)
@@ -879,48 +860,17 @@ func resourceTemplatesListHandler(ctx context.Context, id jsonrpc.RequestId, pri
 		return validateErr, err
 	}
 
-	templatesMap := primitiveMgr.GetResourceTemplatesMap()
-	keys := make([]string, 0, len(templatesMap))
-	for k := range templatesMap {
-		keys = append(keys, k)
+	result, err := GenerateListResourceTemplatesResult(primitiveMgr, g)
+	if err != nil {
+		return jsonrpc.NewError(id, jsonrpc.INTERNAL_ERROR, err.Error(), nil), err
 	}
-	slices.Sort(keys)
+	logger.DebugContext(ctx, fmt.Sprintf("returning %d resource templates", len(result.ResourceTemplates)))
 
-	result := &ListResourceTemplatesResult{
-		ResourceTemplates: make([]ResourceTemplate, 0, len(keys)),
-		CacheableResult: CacheableResult{
-			TtlMs:      300000,
-			CacheScope: cacheScopePublic,
-		},
+	meta, err := getResultMetadata(ctx, result.Meta)
+	if err != nil {
+		return jsonrpc.NewError(id, jsonrpc.INTERNAL_ERROR, err.Error(), nil), err
 	}
-
-	for _, k := range keys {
-		rt := templatesMap[k]
-
-		var annotations *ResourceAnnotations
-		if internalAnns := rt.GetAnnotations(); internalAnns != nil {
-			if len(internalAnns.Audience) > 0 || internalAnns.Priority != nil || internalAnns.LastModified != "" {
-				annotations = &ResourceAnnotations{}
-				for _, aud := range internalAnns.Audience {
-					annotations.Audience = append(annotations.Audience, Role(aud))
-				}
-				if internalAnns.Priority != nil {
-					annotations.Priority = *internalAnns.Priority
-				}
-				if internalAnns.LastModified != "" {
-					annotations.LastModified = internalAnns.LastModified
-				}
-			}
-		}
-
-		result.ResourceTemplates = append(result.ResourceTemplates, ResourceTemplate{
-			BaseMetadata: BaseMetadata{Name: k, Title: rt.GetTitle()},
-			UriTemplate:  rt.GetURITemplate(),
-			Description:  rt.GetDescription(),
-			MimeType:     rt.GetMimeType(),
-			Annotations:  annotations,
-		})
-	}
+	result.Meta = meta
 
 	return jsonrpc.JSONRPCResponse{
 		Jsonrpc: jsonrpc.JSONRPC_VERSION,
@@ -930,7 +880,14 @@ func resourceTemplatesListHandler(ctx context.Context, id jsonrpc.RequestId, pri
 }
 
 // resourcesReadHandler generates a response for resources/read.
-func resourcesReadHandler(ctx context.Context, id jsonrpc.RequestId, primitiveMgr *primitives.PrimitiveManager, body []byte, header http.Header) (any, error) {
+func resourcesReadHandler(ctx context.Context, id jsonrpc.RequestId, primitiveMgr *primitives.PrimitiveManager, g group.Group, body []byte, header http.Header) (any, error) {
+	// retrieve logger from context
+	logger, err := util.LoggerFromContext(ctx)
+	if err != nil {
+		return jsonrpc.NewError(id, jsonrpc.INTERNAL_ERROR, err.Error(), nil), err
+	}
+	logger.DebugContext(ctx, "handling resources/read request")
+
 	var req ReadResourceRequest
 	if err := json.Unmarshal(body, &req); err != nil {
 		err = fmt.Errorf("invalid mcp resources read request: %w", err)
@@ -946,7 +903,19 @@ func resourcesReadHandler(ctx context.Context, id jsonrpc.RequestId, primitiveMg
 	}
 
 	uri := req.Params.Uri
-	res, resTmpl, params, err := primitiveMgr.GetResourceOrTemplateByURI(uri)
+	logger.DebugContext(ctx, fmt.Sprintf("resource uri: %s", uri))
+
+	// Update span name and set gen_ai attributes
+	span := trace.SpanFromContext(ctx)
+	span.SetName(fmt.Sprintf("%s %s", RESOURCES_READ, uri))
+	span.SetAttributes(attribute.String("gen_ai.resource.name", uri))
+
+	// Populate gen_ai attributes for operation duration metric
+	if genAIAttrs := util.GenAIMetricAttrsFromContext(ctx); genAIAttrs != nil {
+		genAIAttrs.OperationName = "read_resource"
+	}
+
+	res, resTmpl, params, err := primitiveMgr.GetResourceOrTemplateByURI(uri, g)
 	if err != nil {
 		err = fmt.Errorf("resource lookup failed: %w", err)
 		return jsonrpc.NewError(id, jsonrpc.RESOURCE_NOT_FOUND, err.Error(), nil), err
@@ -968,20 +937,29 @@ func resourcesReadHandler(ctx context.Context, id jsonrpc.RequestId, primitiveMg
 		return jsonrpc.NewError(id, jsonrpc.INTERNAL_ERROR, err.Error(), nil), err
 	}
 
-	// Currently only TextResourceContent is fully supported per plan
+	// Only text content resource is supported
 	textContent, ok := content.(string)
 	if !ok {
 		err = fmt.Errorf("unsupported resource content type, expected string")
 		return jsonrpc.NewError(id, jsonrpc.INTERNAL_ERROR, err.Error(), nil), err
 	}
+	logger.DebugContext(ctx, "read resource successfully")
+	
+	meta, err := getResultMetadata(ctx, nil)
+	if err != nil {
+		return jsonrpc.NewError(id, jsonrpc.INTERNAL_ERROR, err.Error(), nil), err
+	}
 
 	result := &ReadResourceResult{
+		Result: jsonrpc.Result{
+			Meta: meta,
+		},
 		CacheableResult: CacheableResult{
-			TtlMs:      300000,
+			TtlMs:      300000, // 5 minutes
 			CacheScope: cacheScopePublic,
 		},
-		Contents: []any{
-			TextResourceContent{
+		Contents: []TextResourceContent{
+			{
 				Uri:      uri,
 				MimeType: mimeType,
 				Text:     textContent,

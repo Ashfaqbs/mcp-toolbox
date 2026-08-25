@@ -1226,6 +1226,7 @@ func TestGetResultMetadata(t *testing.T) {
 func TestResourcesListHandler(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	ctx = util.WithToolboxVersionKey(ctx, "v0.0.0")
 	testLogger, err := log.NewStdLogger(os.Stdout, os.Stderr, "info")
 	if err != nil {
 		t.Fatalf("unable to initialize logger: %s", err)
@@ -1234,8 +1235,8 @@ func TestResourcesListHandler(t *testing.T) {
 
 	sizeVal := int64(2048)
 	mockResources := []testutils.MockResource{
-		testutils.NewMockResource("res1", "file:///res1", "", "", nil, nil),
-		testutils.NewMockResource("res2", "file:///res2", "Title 2", "application/json", &sizeVal, &resources.ResourceAnnotations{LastModified: "2024-01-01T00:00:00Z"}),
+		testutils.NewMockResource("res1", "file:///res1", "", "", "", nil, nil),
+		testutils.NewMockResource("res2", "file:///res2", "Title 2", "", "application/json", &sizeVal, &resources.ResourceAnnotations{LastModified: "2024-01-01T00:00:00Z"}),
 	}
 	toolsMap, promptsMap, resourcesMap, resourceTemplatesMap, groups := testutils.SetUpPrimitives(t, nil, nil, mockResources, nil)
 	primitiveMgr := primitives.NewPrimitiveManager(nil, nil, nil, toolsMap, promptsMap, resourcesMap, resourceTemplatesMap, groups)
@@ -1287,7 +1288,7 @@ func TestResourcesListHandler(t *testing.T) {
 				}
 			}
 
-			got, err := resourcesListHandler(ctx, dummyID, primitiveMgr, body, nil)
+			got, err := resourcesListHandler(ctx, dummyID, primitiveMgr, mustGroup(t, primitiveMgr), body, nil)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got nil")
@@ -1302,7 +1303,7 @@ func TestResourcesListHandler(t *testing.T) {
 				if got == nil {
 					t.Errorf("expected valid response, got nil")
 				} else {
-					resp := got.(jsonrpc.JSONRPCResponse).Result.(*ListResourcesResult)
+					resp := got.(jsonrpc.JSONRPCResponse).Result.(ListResourcesResult)
 					if len(resp.Resources) != 2 {
 						t.Errorf("expected 2 resources, got %d", len(resp.Resources))
 					} else {
@@ -1324,6 +1325,7 @@ func TestResourcesListHandler(t *testing.T) {
 func TestResourceTemplatesListHandler(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	ctx = util.WithToolboxVersionKey(ctx, "v0.0.0")
 	testLogger, err := log.NewStdLogger(os.Stdout, os.Stderr, "info")
 	if err != nil {
 		t.Fatalf("unable to initialize logger: %s", err)
@@ -1331,8 +1333,8 @@ func TestResourceTemplatesListHandler(t *testing.T) {
 	ctx = util.WithLogger(ctx, testLogger)
 
 	mockTemplates := []testutils.MockResourceTemplate{
-		testutils.NewMockResourceTemplate("tmpl1", "file:///{tmpl}", "", "", nil),
-		testutils.NewMockResourceTemplate("rt2", "file:///rt2/{path}", "Title RT", "text/plain", &resources.ResourceAnnotations{LastModified: "2024-01-01T00:00:00Z"}),
+		testutils.NewMockResourceTemplate("tmpl1", "file:///{tmpl}", "", "", "", nil),
+		testutils.NewMockResourceTemplate("rt2", "file:///rt2/{path}", "Title RT", "", "text/plain", &resources.ResourceAnnotations{LastModified: "2024-01-01T00:00:00Z"}),
 	}
 	toolsMap, promptsMap, resourcesMap, resourceTemplatesMap, groups := testutils.SetUpPrimitives(t, nil, nil, nil, mockTemplates)
 	primitiveMgr := primitives.NewPrimitiveManager(nil, nil, nil, toolsMap, promptsMap, resourcesMap, resourceTemplatesMap, groups)
@@ -1384,7 +1386,7 @@ func TestResourceTemplatesListHandler(t *testing.T) {
 				}
 			}
 
-			got, err := resourceTemplatesListHandler(ctx, dummyID, primitiveMgr, body, nil)
+			got, err := resourceTemplatesListHandler(ctx, dummyID, primitiveMgr, mustGroup(t, primitiveMgr), body, nil)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got nil")
@@ -1399,7 +1401,7 @@ func TestResourceTemplatesListHandler(t *testing.T) {
 				if got == nil {
 					t.Errorf("expected valid response, got nil")
 				} else {
-					resp := got.(jsonrpc.JSONRPCResponse).Result.(*ListResourceTemplatesResult)
+					resp := got.(jsonrpc.JSONRPCResponse).Result.(ListResourceTemplatesResult)
 					if len(resp.ResourceTemplates) != 2 {
 						t.Errorf("expected 2 templates, got %d", len(resp.ResourceTemplates))
 					} else {
@@ -1421,6 +1423,7 @@ func TestResourceTemplatesListHandler(t *testing.T) {
 func TestResourcesReadHandler(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+	ctx = util.WithToolboxVersionKey(ctx, "v0.0.0")
 	testLogger, err := log.NewStdLogger(os.Stdout, os.Stderr, "info")
 	if err != nil {
 		t.Fatalf("unable to initialize logger: %s", err)
@@ -1428,7 +1431,7 @@ func TestResourcesReadHandler(t *testing.T) {
 	ctx = util.WithLogger(ctx, testLogger)
 
 	mockResources := []testutils.MockResource{
-		testutils.NewMockResource("res1", "file:///res1", "", "", nil, nil),
+		testutils.NewMockResource("res1", "file:///res1", "", "", "", nil, nil),
 	}
 	toolsMap, promptsMap, resourcesMap, resourceTemplatesMap, groups := testutils.SetUpPrimitives(t, nil, nil, mockResources, nil)
 	primitiveMgr := primitives.NewPrimitiveManager(nil, nil, nil, toolsMap, promptsMap, resourcesMap, resourceTemplatesMap, groups)
@@ -1500,7 +1503,7 @@ func TestResourcesReadHandler(t *testing.T) {
 				}
 			}
 
-			got, err := resourcesReadHandler(ctx, dummyID, primitiveMgr, body, nil)
+			got, err := resourcesReadHandler(ctx, dummyID, primitiveMgr, mustGroup(t, primitiveMgr), body, nil)
 			if tt.wantErr {
 				if err == nil {
 					t.Fatalf("expected error, got nil")

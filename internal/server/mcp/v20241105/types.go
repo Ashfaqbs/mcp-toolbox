@@ -394,7 +394,6 @@ type ListResourceTemplatesResult struct {
 type ReadResourceRequest struct {
 	jsonrpc.Request
 	Params struct {
-		// The URI of the resource to read.
 		Uri string `json:"uri"`
 	} `json:"params"`
 }
@@ -402,15 +401,12 @@ type ReadResourceRequest struct {
 // ReadResourceResult represents the result of a read resource request.
 type ReadResourceResult struct {
 	jsonrpc.Result
-	Contents []any `json:"contents"` // TextResourceContent
+	Contents []TextResourceContent `json:"contents"`
 }
 
 // TextResourceContent represents text-based resource content.
 type TextResourceContent struct {
-	// The URI of the resource.
-	Uri string `json:"uri"`
-	// The MIME type of this resource, if known.
+	Uri      string `json:"uri"`
 	MimeType string `json:"mimeType,omitempty"`
-	// The text of the resource.
 	Text string `json:"text"`
 }
