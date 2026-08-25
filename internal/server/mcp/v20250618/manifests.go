@@ -159,9 +159,9 @@ func GenerateListPromptsResult(pMgr *primitives.PrimitiveManager, g group.Group)
 }
 
 // generateResourceManifest generates a version-specific Resource manifest for list/resources
-func generateResourceManifest(name, desc, uri, mimeType string, size *int64, internalAnns *resources.ResourceAnnotations) Resource {
+func generateResourceManifest(name, title, desc, uri, mimeType string, size *int64, internalAnns *resources.ResourceAnnotations) Resource {
 	var annotations *ResourceAnnotations
-	if internalAnns != nil {
+	if internalAnns != nil && (internalAnns.LastModified != "" || len(internalAnns.Audience) > 0 || internalAnns.Priority != nil) {
 		annotations = &ResourceAnnotations{
 			LastModified: internalAnns.LastModified,
 		}
@@ -173,7 +173,7 @@ func generateResourceManifest(name, desc, uri, mimeType string, size *int64, int
 		}
 	}
 	return Resource{
-		BaseMetadata: BaseMetadata{Name: name},
+		BaseMetadata: BaseMetadata{Name: name, Title: title},
 		Uri:          uri,
 		Description:  desc,
 		MimeType:     mimeType,
@@ -190,15 +190,15 @@ func GenerateListResourcesResult(pMgr *primitives.PrimitiveManager, g group.Grou
 		if !ok {
 			return ListResourcesResult{}, fmt.Errorf("resource does not exist: %s", name)
 		}
-		mcpManifest = append(mcpManifest, generateResourceManifest(name, res.GetDescription(), res.GetURI(), res.GetMimeType(), res.GetSize(), res.GetAnnotations()))
+		mcpManifest = append(mcpManifest, generateResourceManifest(name, res.GetTitle(), res.GetDescription(), res.GetURI(), res.GetMimeType(), res.GetSize(), res.GetAnnotations()))
 	}
 	return ListResourcesResult{Resources: mcpManifest}, nil
 }
 
 // generateResourceTemplateManifest generates a version-specific ResourceTemplate manifest
-func generateResourceTemplateManifest(name, desc, uriTemplate, mimeType string, internalAnns *resources.ResourceAnnotations) ResourceTemplate {
+func generateResourceTemplateManifest(name, title, desc, uriTemplate, mimeType string, internalAnns *resources.ResourceAnnotations) ResourceTemplate {
 	var annotations *ResourceAnnotations
-	if internalAnns != nil {
+	if internalAnns != nil && (internalAnns.LastModified != "" || len(internalAnns.Audience) > 0 || internalAnns.Priority != nil) {
 		annotations = &ResourceAnnotations{
 			LastModified: internalAnns.LastModified,
 		}
@@ -210,7 +210,7 @@ func generateResourceTemplateManifest(name, desc, uriTemplate, mimeType string, 
 		}
 	}
 	return ResourceTemplate{
-		BaseMetadata: BaseMetadata{Name: name},
+		BaseMetadata: BaseMetadata{Name: name, Title: title},
 		UriTemplate:  uriTemplate,
 		Description:  desc,
 		MimeType:     mimeType,
@@ -226,7 +226,7 @@ func GenerateListResourceTemplatesResult(pMgr *primitives.PrimitiveManager, g gr
 		if !ok {
 			return ListResourceTemplatesResult{}, fmt.Errorf("resource template does not exist: %s", name)
 		}
-		mcpManifest = append(mcpManifest, generateResourceTemplateManifest(name, tmpl.GetDescription(), tmpl.GetURITemplate(), tmpl.GetMimeType(), tmpl.GetAnnotations()))
+		mcpManifest = append(mcpManifest, generateResourceTemplateManifest(name, tmpl.GetTitle(), tmpl.GetDescription(), tmpl.GetURITemplate(), tmpl.GetMimeType(), tmpl.GetAnnotations()))
 	}
 	return ListResourceTemplatesResult{ResourceTemplates: mcpManifest}, nil
 }
