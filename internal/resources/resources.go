@@ -381,8 +381,8 @@ func (c *ResourceTemplateConfigBase) Validate() error {
 	// A url.Parse round trip is not used here (unlike ResourceConfigBase.Validate)
 	// because it corrupts RFC 6570 templates: it errors on "{" in the host for a
 	// template like "file://{path}", and percent-encodes "{"/"}" otherwise.
-	if i := strings.Index(c.URITemplate, "://"); i > 0 {
-		c.URITemplate = strings.ToLower(c.URITemplate[:i]) + c.URITemplate[i:]
+	if scheme, rest, found := strings.Cut(c.URITemplate, "://"); found && scheme != "" {
+		c.URITemplate = strings.ToLower(scheme) + "://" + rest
 	}
 
 	// Validate RFC 6570 compliance
