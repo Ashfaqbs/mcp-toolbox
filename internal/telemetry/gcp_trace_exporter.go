@@ -16,6 +16,7 @@ package telemetry
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sync/atomic"
 
@@ -64,7 +65,10 @@ func (e *circuitBreakingTraceExporter) ExportSpans(ctx context.Context, spans []
 		e.consecutivePermissionDenied.Store(0)
 		return nil
 	}
-	if status.Code(err) != codes.PermissionDenied {
+	var s interface {
+		GRPCStatus() *status.Status
+	}
+	if !errors.As(err, &s) || s.GRPCStatus().Code() != codes.PermissionDenied {
 		e.consecutivePermissionDenied.Store(0)
 		return err
 	}

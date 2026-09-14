@@ -17,6 +17,7 @@ package telemetry
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -75,6 +76,26 @@ func TestCircuitBreakingTraceExporter_NonPermissionDeniedAlwaysPassesThrough(t *
 	}
 	if fake.exportCalls != 5 {
 		t.Fatalf("underlying ExportSpans called %d times, want 5 (never disabled)", fake.exportCalls)
+	}
+}
+
+func TestCircuitBreakingTraceExporter_DetectsPermissionDeniedThroughWrappedError(t *testing.T) {
+	// fmt.Errorf("%w", ...) simulates middleware (e.g. the OpenTelemetry SDK)
+	// wrapping the gRPC status error. status.Code() would misread this as
+	// codes.Unknown; errors.As must still find the underlying status.
+	wrapped := fmt.Errorf("export failed: %w", permissionDeniedErr())
+	results := make([]error, 0, gcpTracePermissionDeniedThreshold)
+	for range gcpTracePermissionDeniedThreshold {
+		results = append(results, wrapped)
+	}
+	fake := &fakeSpanExporter{results: results}
+	exp := newCircuitBreakingTraceExporter(fake)
+
+	for range gcpTracePermissionDeniedThreshold - 1 {
+		exp.ExportSpans(context.Background(), nil)
+	}
+	if err := exp.ExportSpans(context.Background(), nil); err != nil {
+		t.Fatalf("threshold call: ExportSpans() = %v, want nil (wrapped PermissionDenied should still trip the breaker)", err)
 	}
 }
 
